@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prompt Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111827">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .prose pre { background-color: #1f2937; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        .prose code { color: #60a5fa; }
+        .layout-transition { transition: all 0.3s ease; }
+        /* Renk inputları için özel tasarım */
+        input[type="color"] { -webkit-appearance: none; border: none; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; cursor: pointer; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header & Arama -->
+    <header class="bg-gray-800 p-4 shadow-md z-10 flex flex-col gap-4">
+        <div class="flex justify-between items-center">
+            <h1 id="headerTitle" class="text-xl font-bold text-blue-400 cursor-pointer flex items-center gap-2" onclick="goHome()">
+                <svg id="backIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                <span id="titleText">Kategoriler</span>
+            </h1>
+            <div class="flex items-center space-x-2">
+                <!-- Ayarlar Butonu -->
+                <button onclick="openSettings()" class="p-2 bg-gray-700 rounded-lg active:scale-95 text-gray-300 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+                <!-- Layout Butonu (Grid/List) -->
+                <button onclick="toggleLayout()" id="layoutBtn" class="p-2 bg-gray-700 rounded-lg active:scale-95 text-gray-300 hover:text-white">
+                    <svg id="icon-grid" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <svg id="icon-list" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+        </div>
+        <div>
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Tüm promptlarda ara..." class="w-full bg-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+    </header>
+
+    <!-- Ana İçerik Alanı -->
+    <main class="flex-1 overflow-y-auto p-4 hide-scrollbar">
+        <div id="mainContainer" class="layout-transition">
+            <!-- Kategoriler veya Prompt Kartları JS ile buraya yüklenecek -->
+        </div>
+    </main>
+
+    <!-- FAB (Ekleme Butonu) -->
+    <button onclick="openPromptModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-500 active:scale-90 transition-transform z-20">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    </button>
+
+    <!-- Ayarlar Modalı (Kategori Yönetimi) -->
+    <div id="settingsModal" class="fixed inset-0 bg-gray-900 z-50 hidden flex-col">
+        <div class="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
+            <h2 class="text-lg font-bold">Kategori Ayarları</h2>
+            <button onclick="closeSettings()" class="p-2 text-gray-400 hover:text-white">Kapat</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-gray-900 space-y-6">
+            <!-- Yeni Kategori Ekleme -->
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex gap-2">
+                <input type="text" id="newCategoryName" placeholder="Yeni kategori adı..." class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="addNewCategory()" class="bg-blue-600 px-4 py-2 rounded-lg font-bold active:scale-95">Ekle</button>
+            </div>
+            
+            <!-- Mevcut Kategoriler Listesi -->
+            <div>
+                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Mevcut Kategoriler</h3>
+                <div id="categoriesList" class="space-y-3">
+                    <!-- JS ile dolacak -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ekle / Düzenle Modalı -->
+    <div id="promptModal" class="fixed inset-0 bg-gray-900 z-50 hidden flex-col">
+        <div class="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
+            <h2 id="modalTitle" class="text-lg font-bold">Yeni Prompt</h2>
+            <button onclick="closePromptModal()" class="p-2 text-gray-400 hover:text-white">Kapat</button>
+        </div>
+        
+        <div class="flex border-b border-gray-700 bg-gray-800">
+            <button onclick="switchTab('edit')" id="tabEdit" class="flex-1 py-3 text-center border-b-2 border-blue-500 text-blue-500 font-medium">Düzenle</button>
+            <button onclick="switchTab('preview')" id="tabPreview" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 font-medium">Önizleme</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 bg-gray-900">
+            <div id="editArea" class="space-y-4">
+                <input type="hidden" id="promptId">
+                <input type="text" id="promptTitle" placeholder="Başlık" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <!-- Select Menu (Kategoriler) -->
+                <select id="promptCategory" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none">
+                    <!-- JS ile dolacak -->
+                </select>
+                <textarea id="promptContent" placeholder="Metninizi buraya yapıştırın..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 h-64 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+            </div>
+            
+            <div id="previewArea" class="hidden prose prose-invert max-w-none text-gray-200">
+                <!-- MD render -->
+            </div>
+        </div>
+
+        <div class="p-4 bg-gray-800 border-t border-gray-700 flex gap-2">
+            <button onclick="deletePrompt()" id="deleteBtn" class="hidden bg-red-600/20 text-red-500 px-4 py-3 rounded-xl font-bold active:scale-95 border border-red-600/50">Sil</button>
+            <!-- Düzenleme Ekranı Kopyala Butonu -->
+            <button onclick="copyFromEditor()" id="editorCopyBtn" class="hidden bg-gray-700 text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            </button>
+            <button onclick="savePrompt()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 shadow-lg shadow-blue-900/50">KAYDET</button>
+        </div>
+    </div>
+
+    <!-- Kopyalandı Bildirimi (Toast) -->
+    <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50 font-medium flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        Kopyalandı!
+    </div>
+
+    <script>
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+
+        // --- VERİ TABANI & RENK PALETİ ---
+        const kategoriRenkPaleti = ['#22C55E', '#F97316', '#A855F7', '#6366F1', '#64748B', '#EC4899', '#06B6D4', '#EAB308', '#F43F5E'];
+        
+        function rastgeleKategoriRengiUret() {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, 80%, 60%)`;
+        }
+
+        let prompts = JSON.parse(localStorage.getItem('app_prompts')) || [];
+        let categories = JSON.parse(localStorage.getItem('app_categories')) || [];
+        
+        // --- STATE (DURUM) YÖNETİMİ ---
+        // Kullanıcının bıraktığı görünümü hatırla. Default: 'folders'
+        let currentView = localStorage.getItem('app_currentView') || 'folders'; 
+        let isGridView = localStorage.getItem('app_isGridView') === 'true';
+        let activeCategoryFilter = null; // Hangi klasörün içindeyiz?
+
+        // Varsayılan kategoriler yoksa oluştur
+        if(categories.length === 0) {
+            ['Genel', 'Kodlama', 'Tarih', 'İş'].forEach((name, index) => {
+                categories.push({ 
+                    id: Date.now() + index, 
+                    name: name, 
+                    color: index < kategoriRenkPaleti.length ? kategoriRenkPaleti[index] : rastgeleKategoriRengiUret() 
+                });
+            });
+            saveCategories();
+        }
+
+        initApp();
+
+        function initApp() {
+            updateLayoutIcon();
+            renderMain();
+        }
+
+        function savePrompts() { localStorage.setItem('app_prompts', JSON.stringify(prompts)); }
+        function saveCategories() { localStorage.setItem('app_categories', JSON.stringify(categories)); }
+        function saveViewState() {
+            localStorage.setItem('app_currentView', currentView);
+            localStorage.setItem('app_isGridView', isGridView);
+        }
+
+        // --- GÖRÜNÜM VE RENDER MOTORU ---
+        function updateLayoutIcon() {
+            const iconGrid = document.getElementById('icon-grid');
+            const iconList = document.getElementById('icon-list');
+            if (isGridView) {
+                iconGrid.classList.add('hidden'); iconList.classList.remove('hidden');
+            } else {
+                iconList.classList.add('hidden'); iconGrid.classList.remove('hidden');
+            }
+        }
+
+        function toggleLayout() {
+            isGridView = !isGridView;
+            // Eğer "Klasörler" görünümündeyse ve layout değiştirirse, "Tüm Promptlar" moduna geçsin mi? 
+            // Veya sadece layout'u kaydedip görünümü güncellesin.
+            if(currentView === 'folders') { currentView = 'prompts'; activeCategoryFilter = null; }
+            saveViewState();
+            updateLayoutIcon();
+            renderMain();
+        }
+
+        function goHome() {
+            document.getElementById('searchInput').value = '';
+            currentView = 'folders';
+            activeCategoryFilter = null;
+            saveViewState();
+            renderMain();
+        }
+
+        function openCategory(catName) {
+            activeCategoryFilter = catName;
+            currentView = 'prompts';
+            document.getElementById('searchInput').value = '';
+            saveViewState();
+            renderMain();
+        }
+
+        function handleSearch() {
+            const term = document.getElementById('searchInput').value;
+            if(term.length > 0) {
+                currentView = 'prompts'; // Arama yaparken her zaman promptları göster
+                activeCategoryFilter = null; // Filtreyi sıfırla ki her yerde arasın
+            } else if (currentView !== 'folders') {
+                // Arama temizlenince, eğer spesifik bir kategoride değilsen klasörlere dön
+                if(!activeCategoryFilter) currentView = 'folders';
+            }
+            renderMain();
+        }
+
+        function getCategoryColor(catName) {
+            const cat = categories.find(c => c.name === catName);
+            return cat ? cat.color : '#64748B'; // Bulamazsa gri
+        }
+
+        function renderMain() {
+            const container = document.getElementById('mainContainer');
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const headerTitle = document.getElementById('titleText');
+            const backIcon = document.getElementById('backIcon');
+
+            container.innerHTML = '';
+
+            // 1. Durum: Klasörler (Kategoriler) Görünümü
+            if (currentView === 'folders' && term === '') {
+                headerTitle.innerText = 'Kategoriler';
+                backIcon.classList.add('hidden');
+                container.className = 'grid grid-cols-2 gap-4 layout-transition';
+                
+                categories.forEach(cat => {
+                    const count = prompts.filter(p => p.category === cat.name).length;
+                    container.innerHTML += `
+                        <div onclick="openCategory('${cat.name}')" class="bg-gray-800 rounded-2xl p-5 border border-gray-700 shadow-sm flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-transform hover:bg-gray-750">
+                            <div class="w-12 h-12 rounded-full mb-3 flex items-center justify-center" style="background-color: ${cat.color}20; color: ${cat.color}">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                            </div>
+                            <h3 class="font-bold text-gray-100">${cat.name}</h3>
+                            <span class="text-xs text-gray-400 mt-1">${count} Metin</span>
+                        </div>
+                    `;
+                });
+                return;
+            }
+
+            // 2. Durum: Promptlar (Grid veya Liste)
+            if (activeCategoryFilter) {
+                headerTitle.innerText = activeCategoryFilter;
+                backIcon.classList.remove('hidden');
+            } else {
+                headerTitle.innerText = term ? 'Arama Sonuçları' : 'Tüm Metinler';
+                backIcon.classList.remove('hidden');
+            }
+
+            container.className = isGridView ? 'grid grid-cols-2 gap-4 layout-transition' : 'flex flex-col space-y-4 layout-transition';
+
+            let filtered = prompts;
+            if (activeCategoryFilter) filtered = filtered.filter(p => p.category === activeCategoryFilter);
+            if (term) filtered = filtered.filter(p => p.title.toLowerCase().includes(term) || p.content.toLowerCase().includes(term));
+
+            filtered.sort((a, b) => b.id - a.id);
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">Kayıt bulunamadı.</div>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const color = getCategoryColor(p.category);
+                const snippet = p.content.length > 80 ? p.content.substring(0, 80) + '...' : p.content;
+                
+                // Sağ üstte küçük kopyala butonu
+                container.innerHTML += `
+                    <div class="bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-sm relative group active:bg-gray-750 transition-colors flex flex-col">
+                        
+                        <!-- Header: Badge & Kopyala Butonu -->
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] uppercase font-bold px-2 py-1 rounded border" style="background-color: ${color}15; color: ${color}; border-color: ${color}30;">
+                                ${p.category}
+                            </span>
+                            
+                            <!-- İKON KOPYALA BUTONU -->
+                            <button onclick="copyToClipboard('${encodeURIComponent(p.content)}', event)" class="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 transition-colors active:scale-90 z-10">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- İçerik Alanı (Tıklanınca Düzenler) -->
+                        <div onclick="editPrompt(${p.id})" class="cursor-pointer flex-1">
+                            <h3 class="font-bold text-gray-100 leading-tight mb-2 ${isGridView ? 'text-sm' : 'text-base'}">${p.title}</h3>
+                            <p class="text-gray-400 ${isGridView ? 'text-xs line-clamp-3' : 'text-sm line-clamp-2'} whitespace-pre-wrap">${snippet}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- AYARLAR (KATEGORİ YÖNETİMİ) ---
+        function openSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('settingsModal').classList.add('flex');
+            renderCategoriesSettings();
+        }
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsModal').classList.remove('flex');
+            renderMain(); // Renkler değişmiş olabilir, ana ekranı tazele
+        }
+
+        function renderCategoriesSettings() {
+            const list = document.getElementById('categoriesList');
+            list.innerHTML = '';
+            categories.forEach(cat => {
+                list.innerHTML += `
+                    <div class="flex items-center justify-between bg-gray-800 border border-gray-700 p-3 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <input type="color" value="${hslToHex(cat.color)}" onchange="updateCategoryColor(${cat.id}, this.value)">
+                            <span class="font-medium">${cat.name}</span>
+                        </div>
+                        <button onclick="deleteCategory(${cat.id})" class="text-gray-500 hover:text-red-500 p-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function addNewCategory() {
+            const input = document.getElementById('newCategoryName');
+            const name = input.value.trim();
+            if(!name) return;
+            
+            // Mevcut paletteki sıradaki rengi bul, yoksa rastgele ver
+            const color = categories.length < kategoriRenkPaleti.length 
+                ? kategoriRenkPaleti[categories.length] 
+                : rastgeleKategoriRengiUret();
+
+            categories.push({ id: Date.now(), name, color });
+            saveCategories();
+            input.value = '';
+            renderCategoriesSettings();
+        }
+
+        function updateCategoryColor(id, hexColor) {
+            const cat = categories.find(c => c.id === id);
+            if(cat) {
+                cat.color = hexColor;
+                saveCategories();
+            }
+        }
+
+        function deleteCategory(id) {
+            if(confirm("Bu kategoriyi silmek istediğine emin misin? (İçindeki promptlar silinmez, 'Genel' olarak kalır.)")) {
+                const catName = categories.find(c => c.id === id).name;
+                // Bu kategoriye ait promptların kategorisini Genel yap
+                prompts.forEach(p => { if(p.category === catName) p.category = 'Genel'; });
+                savePrompts();
+                
+                categories = categories.filter(c => c.id !== id);
+                saveCategories();
+                renderCategoriesSettings();
+            }
+        }
+
+        // --- PROMPT EKLEME/DÜZENLEME ---
+        function populateCategorySelect() {
+            const select = document.getElementById('promptCategory');
+            select.innerHTML = '';
+            categories.forEach(cat => {
+                select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+            });
+        }
+
+        function openPromptModal() {
+            populateCategorySelect();
+            document.getElementById('promptId').value = '';
+            document.getElementById('promptTitle').value = '';
+            document.getElementById('promptCategory').value = activeCategoryFilter || categories[0].name;
+            document.getElementById('promptContent').value = '';
+            
+            document.getElementById('modalTitle').innerText = 'Yeni Metin';
+            document.getElementById('deleteBtn').classList.add('hidden');
+            document.getElementById('editorCopyBtn').classList.add('hidden'); // Yeni eklerken kopyala butonu gizli
+            
+            switchTab('edit');
+            document.getElementById('promptModal').classList.remove('hidden');
+            document.getElementById('promptModal').classList.add('flex');
+        }
+
+        function editPrompt(id) {
+            populateCategorySelect();
+            const prompt = prompts.find(p => p.id === id);
+            if(!prompt) return;
+
+            document.getElementById('promptId').value = prompt.id;
+            document.getElementById('promptTitle').value = prompt.title;
+            // Eğer kategori silinmişse dropdown'da görünmesi için ekleyelim
+            if(!categories.find(c => c.name === prompt.category)) {
+                document.getElementById('promptCategory').innerHTML += `<option value="${prompt.category}">${prompt.category}</option>`;
+            }
+            document.getElementById('promptCategory').value = prompt.category;
+            document.getElementById('promptContent').value = prompt.content;
+            
+            document.getElementById('modalTitle').innerText = 'Metni Düzenle';
+            document.getElementById('deleteBtn').classList.remove('hidden');
+            document.getElementById('editorCopyBtn').classList.remove('hidden'); // Düzenlerken kopyala butonu görünür
+            
+            switchTab('edit');
+            document.getElementById('promptModal').classList.remove('hidden');
+            document.getElementById('promptModal').classList.add('flex');
+        }
+
+        function closePromptModal() {
+            document.getElementById('promptModal').classList.add('hidden');
+            document.getElementById('promptModal').classList.remove('flex');
+        }
+
+        function savePrompt() {
+            const id = document.getElementById('promptId').value;
+            const title = document.getElementById('promptTitle').value.trim();
+            const category = document.getElementById('promptCategory').value;
+            const content = document.getElementById('promptContent').value.trim();
+
+            if (!title || !content) return alert("Başlık ve içerik zorunludur!");
+
+            if (id) {
+                const index = prompts.findIndex(p => p.id == id);
+                prompts[index] = { id: parseInt(id), title, category, content };
+            } else {
+                prompts.push({ id: Date.now(), title, category, content });
+            }
+
+            savePrompts();
+            renderMain();
+            closePromptModal();
+        }
+
+        function deletePrompt() {
+            if(confirm("Silmek istediğine emin misin?")) {
+                const id = document.getElementById('promptId').value;
+                prompts = prompts.filter(p => p.id != id);
+                savePrompts();
+                renderMain();
+                closePromptModal();
+            }
+        }
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        function switchTab(tab) {
+            const editArea = document.getElementById('editArea');
+            const previewArea = document.getElementById('previewArea');
+            const tabEdit = document.getElementById('tabEdit');
+            const tabPreview = document.getElementById('tabPreview');
+
+            if (tab === 'preview') {
+                const rawText = document.getElementById('promptContent').value;
+                previewArea.innerHTML = marked.parse(rawText || '*Önizlenecek metin yok.*');
+                editArea.classList.add('hidden'); previewArea.classList.remove('hidden');
+                tabPreview.classList.replace('border-transparent', 'border-blue-500'); tabPreview.classList.replace('text-gray-400', 'text-blue-500');
+                tabEdit.classList.replace('border-blue-500', 'border-transparent'); tabEdit.classList.replace('text-blue-500', 'text-gray-400');
+            } else {
+                previewArea.classList.add('hidden'); editArea.classList.remove('hidden');
+                tabEdit.classList.replace('border-transparent', 'border-blue-500'); tabEdit.classList.replace('text-gray-400', 'text-blue-500');
+                tabPreview.classList.replace('border-blue-500', 'border-transparent'); tabPreview.classList.replace('text-blue-500', 'text-gray-400');
+            }
+        }
+
+        function copyToClipboard(encodedText, event) {
+            if(event) event.stopPropagation(); // Karta tıklanma eventini engelle (düzenlemeye gitmesin)
+            const text = decodeURIComponent(encodedText);
+            navigator.clipboard.writeText(text).then(showToast);
+        }
+
+        function copyFromEditor() {
+            const text = document.getElementById('promptContent').value;
+            navigator.clipboard.writeText(text).then(showToast);
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 1500);
+        }
+
+        // HSL'yi renk seçici (Color Picker) için HEX'e çeviren basit yardımcı
+        function hslToHex(str) {
+            if(str.startsWith('#')) return str;
+            // Basit bir fallback, color picker standart HSL okuyamadığı için 
+            // rastgele üretilen hsl() formatını göstermede hex dönüştürücüye ihtiyaç vardır.
+            // İşleri uzatmamak adına, varsayılan bir hex dönebiliriz. (Kullanıcı değiştirdiğinde hex olur).
+            return '#3b82f6'; 
+        }
+    </script>
+</body>
+</html>

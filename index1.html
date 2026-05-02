@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prompt Manager</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111827">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js (Markdown Parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* Mobil uygulama hissi için ekstra dokunuşlar */
+        body { -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .prose pre { background-color: #1f2937; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        .prose code { color: #60a5fa; }
+        
+        /* Grid ve List animasyon geçişi */
+        .layout-transition { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header & Arama -->
+    <header class="bg-gray-800 p-4 shadow-md z-10">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold text-blue-400">Promptlarım</h1>
+            <button onclick="toggleLayout()" id="layoutBtn" class="p-2 bg-gray-700 rounded-lg active:scale-95">
+                <!-- Grid/List İkonu -->
+                <svg id="icon-grid" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                <svg id="icon-list" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </div>
+        <div class="flex space-x-2">
+            <input type="text" id="searchInput" oninput="renderPrompts()" placeholder="Prompt ara..." class="w-full bg-gray-700 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select id="categoryFilter" onchange="renderPrompts()" class="bg-gray-700 text-white rounded-xl px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[120px]">
+                <option value="all">Tümü</option>
+                <!-- Kategoriler JS ile dolacak -->
+            </select>
+        </div>
+    </header>
+
+    <!-- Ana Liste -->
+    <main class="flex-1 overflow-y-auto p-4 hide-scrollbar">
+        <div id="promptsContainer" class="flex flex-col space-y-4 layout-transition">
+            <!-- Kartlar buraya gelecek -->
+        </div>
+    </main>
+
+    <!-- FAB (Ekleme Butonu) -->
+    <button onclick="openModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-500 active:scale-90 transition-transform z-20">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    </button>
+
+    <!-- Ekle / Düzenle Modalı -->
+    <div id="promptModal" class="fixed inset-0 bg-gray-900 z-50 hidden flex-col">
+        <div class="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
+            <h2 id="modalTitle" class="text-lg font-bold">Yeni Prompt</h2>
+            <button onclick="closeModal()" class="p-2 text-gray-400 hover:text-white">Kapat</button>
+        </div>
+        
+        <div class="flex border-b border-gray-700 bg-gray-800">
+            <button onclick="switchTab('edit')" id="tabEdit" class="flex-1 py-3 text-center border-b-2 border-blue-500 text-blue-500 font-medium">Düzenle</button>
+            <button onclick="switchTab('preview')" id="tabPreview" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 font-medium">MD Önizleme</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 bg-gray-900">
+            <!-- Düzenleme Alanı -->
+            <div id="editArea" class="space-y-4">
+                <input type="hidden" id="promptId">
+                <input type="text" id="promptTitle" placeholder="Başlık (Örn: Tarih Soru Çözümü)" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="promptCategory" placeholder="Kategori (Örn: Tarih, Kodlama)" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <textarea id="promptContent" placeholder="Markdown destekli prompt metni buraya..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 h-64 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            
+            <!-- Önizleme Alanı -->
+            <div id="previewArea" class="hidden prose prose-invert max-w-none text-gray-200">
+                <!-- MD buraya render edilecek -->
+            </div>
+        </div>
+
+        <div class="p-4 bg-gray-800 border-t border-gray-700 flex space-x-3">
+            <button onclick="deletePrompt()" id="deleteBtn" class="hidden bg-red-600 text-white px-4 py-3 rounded-xl font-bold active:scale-95">Sil</button>
+            <button onclick="savePrompt()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 shadow-lg shadow-blue-900/50">KAYDET</button>
+        </div>
+    </div>
+
+    <!-- Kopyalandı Bildirimi (Toast) -->
+    <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+        Kopyalandı!
+    </div>
+
+    <script>
+        // PWA Service Worker Kaydı
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Başarısız:', err));
+        }
+
+        // Veri Yönetimi
+        let prompts = JSON.parse(localStorage.getItem('myAppPrompts')) || [];
+        let isGridView = localStorage.getItem('isGridView') === 'true';
+
+        // Başlangıç Ayarları
+        initLayout();
+        renderPrompts();
+        updateCategories();
+
+        function saveToStorage() {
+            localStorage.setItem('myAppPrompts', JSON.stringify(prompts));
+        }
+
+        // --- GÖRÜNÜM (LIST/GRID) YÖNETİMİ ---
+        function initLayout() {
+            const container = document.getElementById('promptsContainer');
+            const iconGrid = document.getElementById('icon-grid');
+            const iconList = document.getElementById('icon-list');
+            
+            if (isGridView) {
+                container.className = 'grid grid-cols-2 gap-4 layout-transition';
+                iconGrid.classList.add('hidden');
+                iconList.classList.remove('hidden');
+            } else {
+                container.className = 'flex flex-col space-y-4 layout-transition';
+                iconList.classList.add('hidden');
+                iconGrid.classList.remove('hidden');
+            }
+        }
+
+        function toggleLayout() {
+            isGridView = !isGridView;
+            localStorage.setItem('isGridView', isGridView);
+            initLayout();
+            renderPrompts();
+        }
+
+        // --- RENDER İŞLEMLERİ ---
+        function updateCategories() {
+            const filterSelect = document.getElementById('categoryFilter');
+            const categories = [...new Set(prompts.map(p => p.category).filter(c => c))].sort();
+            
+            // Mevcut seçimi koru
+            const currentVal = filterSelect.value;
+            filterSelect.innerHTML = '<option value="all">Tümü</option>';
+            categories.forEach(c => {
+                filterSelect.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+            if(categories.includes(currentVal)) filterSelect.value = currentVal;
+        }
+
+        function renderPrompts() {
+            const container = document.getElementById('promptsContainer');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const selectedCategory = document.getElementById('categoryFilter').value;
+
+            container.innerHTML = '';
+
+            const filtered = prompts.filter(p => {
+                const matchSearch = p.title.toLowerCase().includes(searchTerm) || p.content.toLowerCase().includes(searchTerm);
+                const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
+                return matchSearch && matchCat;
+            }).sort((a, b) => b.id - a.id); // Yeniler üstte
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 mt-10">Kayıtlı prompt bulunamadı.</div>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                // List vs Grid görünümüne göre içerik kısaltması
+                const contentSnippet = p.content.length > 60 ? p.content.substring(0, 60) + '...' : p.content;
+                
+                container.innerHTML += `
+                    <div class="bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-sm flex flex-col justify-between active:bg-gray-750 transition-colors">
+                        <div onclick="editPrompt(${p.id})" class="cursor-pointer mb-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-gray-700 text-blue-400 text-xs px-2 py-1 rounded-md font-semibold">${p.category || 'Genel'}</span>
+                            </div>
+                            <h3 class="font-bold text-lg leading-tight mb-1 line-clamp-2">${p.title}</h3>
+                            <p class="text-gray-400 text-sm line-clamp-2">${contentSnippet}</p>
+                        </div>
+                        <button onclick="copyToClipboard('${encodeURIComponent(p.content)}')" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl flex items-center justify-center space-x-2 active:scale-95 transition-transform">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            <span>Kopyala</span>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        // --- CRUD İŞLEMLERİ ---
+        function openModal() {
+            document.getElementById('promptId').value = '';
+            document.getElementById('promptTitle').value = '';
+            document.getElementById('promptCategory').value = document.getElementById('categoryFilter').value !== 'all' ? document.getElementById('categoryFilter').value : '';
+            document.getElementById('promptContent').value = '';
+            document.getElementById('modalTitle').innerText = 'Yeni Prompt';
+            document.getElementById('deleteBtn').classList.add('hidden');
+            switchTab('edit');
+            document.getElementById('promptModal').classList.remove('hidden');
+            document.getElementById('promptModal').classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('promptModal').classList.add('hidden');
+            document.getElementById('promptModal').classList.remove('flex');
+        }
+
+        function savePrompt() {
+            const id = document.getElementById('promptId').value;
+            const title = document.getElementById('promptTitle').value.trim();
+            const category = document.getElementById('promptCategory').value.trim();
+            const content = document.getElementById('promptContent').value.trim();
+
+            if (!title || !content) {
+                alert("Başlık ve içerik zorunludur!");
+                return;
+            }
+
+            if (id) {
+                const index = prompts.findIndex(p => p.id == id);
+                prompts[index] = { id: parseInt(id), title, category, content };
+            } else {
+                prompts.push({ id: Date.now(), title, category, content });
+            }
+
+            saveToStorage();
+            updateCategories();
+            renderPrompts();
+            closeModal();
+        }
+
+        function editPrompt(id) {
+            const prompt = prompts.find(p => p.id === id);
+            if(!prompt) return;
+
+            document.getElementById('promptId').value = prompt.id;
+            document.getElementById('promptTitle').value = prompt.title;
+            document.getElementById('promptCategory').value = prompt.category;
+            document.getElementById('promptContent').value = prompt.content;
+            
+            document.getElementById('modalTitle').innerText = 'Prompt Düzenle';
+            document.getElementById('deleteBtn').classList.remove('hidden');
+            switchTab('edit');
+            
+            document.getElementById('promptModal').classList.remove('hidden');
+            document.getElementById('promptModal').classList.add('flex');
+        }
+
+        function deletePrompt() {
+            if(confirm("Bu promptu silmek istediğine emin misin?")) {
+                const id = document.getElementById('promptId').value;
+                prompts = prompts.filter(p => p.id != id);
+                saveToStorage();
+                updateCategories();
+                renderPrompts();
+                closeModal();
+            }
+        }
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        function switchTab(tab) {
+            const editArea = document.getElementById('editArea');
+            const previewArea = document.getElementById('previewArea');
+            const tabEdit = document.getElementById('tabEdit');
+            const tabPreview = document.getElementById('tabPreview');
+
+            if (tab === 'preview') {
+                const rawText = document.getElementById('promptContent').value;
+                // Markdown'ı HTML'e çevir
+                previewArea.innerHTML = marked.parse(rawText || '*Önizlenecek metin yok.*');
+                
+                editArea.classList.add('hidden');
+                previewArea.classList.remove('hidden');
+                
+                tabPreview.classList.replace('border-transparent', 'border-blue-500');
+                tabPreview.classList.replace('text-gray-400', 'text-blue-500');
+                tabEdit.classList.replace('border-blue-500', 'border-transparent');
+                tabEdit.classList.replace('text-blue-500', 'text-gray-400');
+            } else {
+                previewArea.classList.add('hidden');
+                editArea.classList.remove('hidden');
+                
+                tabEdit.classList.replace('border-transparent', 'border-blue-500');
+                tabEdit.classList.replace('text-gray-400', 'text-blue-500');
+                tabPreview.classList.replace('border-blue-500', 'border-transparent');
+                tabPreview.classList.replace('text-blue-500', 'text-gray-400');
+            }
+        }
+
+        function copyToClipboard(encodedText) {
+            const text = decodeURIComponent(encodedText);
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('opacity-0');
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+</html>
